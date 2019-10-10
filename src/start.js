@@ -24,12 +24,15 @@ export const start = async () => {
 
     const Posts = db.collection('posts')
     const Comments = db.collection('comments')
+    const Like = db.collection('like')
 
     const typeDefs = [`
       type Query {
         post(_id: String): Post
         posts: [Post]
         comment(_id: String): Comment
+        like(_id: String): Like
+        likes: [Like]
       }
 
       type Post {
@@ -37,6 +40,7 @@ export const start = async () => {
         title: String
         content: String
         comments: [Comment]
+        like: Like
       }
 
       type Comment {
@@ -44,11 +48,21 @@ export const start = async () => {
         postId: String
         content: String
         post: Post
+        like: Like
+      }
+
+      type Like {
+        _id: String
+        commentId: String
+        postId: String
+        count: Int
       }
 
       type Mutation {
         createPost(title: String, content: String): Post
         createComment(postId: String, content: String): Comment
+        likeComment(commentId: String, count: Int): Like
+        likePost(postId: String, count: Int): Like
       }
 
       schema {
@@ -68,15 +82,27 @@ export const start = async () => {
         comment: async (root, {_id}) => {
           return prepare(await Comments.findOne(ObjectId(_id)))
         },
+        like: async (root, {_id}) => {
+          return prepare(await Like.findOne(ObjectId(_id)))
+        },
+        likes: async () => {
+          return (await Like.find({}).toArray()).map(prepare)
+        }
       },
       Post: {
         comments: async ({_id}) => {
           return (await Comments.find({postId: _id}).toArray()).map(prepare)
+        },
+        like: async ({_id}) => {
+          return (await Like.findOne({postId: _id}))
         }
       },
       Comment: {
         post: async ({postId}) => {
           return prepare(await Posts.findOne(ObjectId(postId)))
+        },
+        like: async ({_id}) => {
+          return prepare(await Like.findOne({commentId: _id}))
         }
       },
       Mutation: {
@@ -88,6 +114,14 @@ export const start = async () => {
           const res = await Comments.insert(args)
           return prepare(await Comments.findOne({_id: res.insertedIds[1]}))
         },
+        likeComment: async (root, args) => {
+          const res = await Like.insert(args)
+          return prepare(await Like.findOne({_id: res.insertedIds[1]}))
+        },
+        likePost: async (root, args) => {
+          const res = await Like.insert(args)
+          return prepare(await Like.findOne({_id: res.insertedIds[1]}))
+        }
       },
     }
 
